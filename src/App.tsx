@@ -1,7 +1,5 @@
-/// <reference types="react" />
-
 // Full React App demonstrating all HTTP methods with Student API
-import React, { useEffect, useState } from 'react'
+import React, {  useState } from 'react'
 
 const API_URL = 'https://be-1.rishabraj2211.workers.dev/students'
 
