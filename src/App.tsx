@@ -1,13 +1,15 @@
-// Full React App demonstrating all HTTP methods with Student API
-import React, {  useState } from 'react'
+import React, { useState } from 'react'
 
 const API_URL = 'https://be-1.rishabraj2211.workers.dev/students'
+const ETAG_URL = 'https://be-1.rishabraj2211.workers.dev/etag-student'
 
 export default function App() {
   const [students, setStudents] = useState<any[]>([])
   const [form, setForm] = useState({ name: '', age: '', email: '', department: '', year: '', gpa: '' })
   const [editId, setEditId] = useState<number | null>(null)
   const [responseMessage, setResponseMessage] = useState<string>('')
+  const [etag, setEtag] = useState<string | null>(null)
+  const [cachedStudent, setCachedStudent] = useState<any | null>(null)
 
   const fetchStudents = async () => {
     const res = await fetch(API_URL)
@@ -65,16 +67,43 @@ export default function App() {
     fetchStudents()
   }
 
+  const fetchStudentWithETag = async (id: number) => {
+    const res = await fetch(`${ETAG_URL}/${id}`, {
+      headers: etag ? { 'If-None-Match': etag } : {}
+    })
+
+    if (res.status === 304) {
+      setResponseMessage(`ETag: 304 Not Modified — Using cached data for ID ${id}`)
+      return
+    }
+
+    const data = await res.json()
+    const newEtag = res.headers.get('etag')
+
+    setCachedStudent(data)
+    setEtag(newEtag)
+    setResponseMessage(`ETag: 200 OK — Fetched fresh data for ID ${id}`)
+  }
+
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Student Management</h1>
 
-      <button
-        className="bg-gray-700 text-white px-4 py-2 rounded mb-4"
-        onClick={fetchStudents}
-      >
-        Refresh Students (GET)
-      </button>
+      <div className="mb-4 flex gap-4">
+        <button
+          className="bg-gray-700 text-white px-4 py-2 rounded"
+          onClick={fetchStudents}
+        >
+          Refresh Students (GET)
+        </button>
+
+        <button
+          className="bg-purple-600 text-white px-4 py-2 rounded"
+          onClick={() => fetchStudentWithETag(2)}
+        >
+          Fetch Student with ETag (ID: 2)
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="grid gap-2 mb-6">
         <input className="border p-2 rounded" placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
@@ -108,6 +137,17 @@ export default function App() {
           </li>
         ))}
       </ul>
+
+      {cachedStudent && (
+        <div className="mt-6 bg-white p-4 border rounded shadow">
+          <h3 className="font-semibold text-lg mb-2">Cached Student (from ETag)</h3>
+          <p><strong>{cachedStudent.name}</strong> ({cachedStudent.department}) - GPA: {cachedStudent.gpa}</p>
+          <p className="text-sm text-gray-500">
+            {cachedStudent.email} • Year: {cachedStudent.year} • Age: {cachedStudent.age}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">ETag: {etag}</p>
+        </div>
+      )}
     </div>
   )
 }
